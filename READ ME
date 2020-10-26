@@ -1,0 +1,9 @@
+# In this repository I explore IBGE's Agriculture Census data on census workers trajectory in rural areas. 
+
+# Data can be downloaded at: https://censos.ibge.gov.br/agro/2017/resultados-censo-agro-2017/trajetos-dos-recenseadores.html
+
+#This georeferenced data was made available for the first time in the 2017 census.
+
+# In this repository I estimate the maximun distance, within each brazilian municipality, between the points visited by the census workers. 
+
+# This estimate can produce a measure of each brazilian municipality rural area extension. 
