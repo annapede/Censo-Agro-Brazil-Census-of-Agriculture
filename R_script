@@ -1,0 +1,120 @@
+# Required packages
+install.packages(c("cowplot", "googleway", "ggplot2", "ggrepel", 
+                   "ggspatial", "libwgeom", "sf", "rnaturalearth", "rnaturalearthdata"))
+library(spdep)
+library(maptools)
+library(ggplot2)
+library(dplyr)
+require(maps)
+require(viridis)
+library(rgdal)
+library(haven)
+library("fs")  
+library(tidyverse)
+library(purrr)
+library(repurrrsive)
+
+#Setting directory and loop to open the each municipal trajectory file
+base_dir <- '~/Desktop/XXXXXX'
+raw_dir <- sprintf('%s/Yourfolder', base_dir)
+setwd(raw_dir)
+
+# Renaming the state folder names - in IBGE website data is downloaded for each Brazilian state 
+# I will rename each folder to make it more organized 
+
+
+#################### Cleaning each state file name
+estado<-list(53)
+for (i in estado) {
+  pasta_estado<-sprintf('%s/%s',raw_dir,i)
+  flist <- list.files(pasta_estado)
+  for (file in flist){
+    id <- basename(file)
+    nome<-substr(id, start=1, stop=16)
+    #name <- df$name_lower[match(id, basename(df$uri))]
+    fname <- paste0(pasta_estado, "/", nome,".kml")
+    file <- paste0(pasta_estado, "/", file)
+    #nome_arquivo<-paste(sprintf('%s.kml',nome))
+    file.rename(file,fname)
+  }
+}
+
+##################### Getting in each kml city file the coordinates of the trajectories 
+library(rgdal)
+library(maptools)
+library(ggplot2)
+base_dir <- '~/Desktop/XXXXXX'
+raw_dir <- sprintf('%s/Yourfolder', base_dir)
+estado<-list(11,12,13,14,15,16,17,21,22,23,24,25,26,27,28,29,31,32,33,35,41,42,43,50,51,52,53)
+for (uf in estado){
+  pasta_estado<- sprintf('%s/%s', raw_dir, uf)
+  setwd(pasta_estado)
+  for (cidade in list.files(pasta_estado)){
+    x<-rgdal::readOGR(cidade)
+    c<-ggplot2::fortify(x)
+    coordenadas<-c[,1:2]
+    out_name <- sprintf('Coord_%s.RData',cidade)
+    #nome_arquivo<-paste(sprintf('%s.kml',nome))
+    save(coordenadas,file=out_name)
+  }
+}
+
+#### Estimating the biggest distance between two data points in each municipality
+# Source used as reference: https://stackoverflow.com/questions/50577556/calculate-max-distance-by-group-across-millions-of-coordinates
+
+distancia_km<- function(x) {
+  s<-(data.matrix(x, rownames.force = NA))
+  require(sp)
+  return(max(spDistsN1(s,s[1,],longlat = TRUE)))
+}
+distancia_km(coordenadas)
+
+################ Creating a spreadsheet with the biggest distance for each brazilian municipality
+# Each municipality has as its ID the IBGE municipal code
+
+#Creating the data frame
+distancias<-data.frame(matrix(0, nrow = 1, ncol = 2))
+names(distancias)[1] <- "municipio"
+names(distancias)[2]<- "dist_km"
+
+#Gathering data
+base_dir <- '~/Desktop/XXXXXX'
+raw_dir <- sprintf('%s/Yourfolder', base_dir)
+estado<-list(11,12,13,14,15,16,17,21,22,23,24,25,26,27,28,29,31,32,33,35,41,42,43,50,51,52,53)
+i=1
+for (uf in estado){
+  pasta_estado<- sprintf('%s/%s', raw_dir, uf)
+  setwd(pasta_estado)
+  flist <- list.files(pasta_estado)
+  i=i
+  for (file in flist){
+    load(file)
+    id <- basename(file) 
+    nome<-substr(id, start=16, stop=22)
+    require(sp)
+    a<-distancia_km(coordenadas)
+    remove(coordenadas)
+    distancias[i,1]<-nome
+    distancias[i,2]<-a
+    i=i+1
+  }
+}
+
+#################Testing the estimated distance in Ribeirão Preto (SP)
+
+#Cod IBGE: 3543402
+estado<-list(35)
+pasta_estado<- sprintf('%s/%s', raw_dir, estado)
+setwd(pasta_estado)
+load("Coord_trajetos_3543402.kml.RData")
+library(sf)
+xy <- coordenadas[,c(1,2)]
+Trajetos_RP <- SpatialPointsDataFrame(coords = xy, data = coordenadas,proj4string = CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
+plot(spdf)
+# interactive map:
+install.packages("mapview")
+require(mapview)
+mapview(Trajetos_RP, pch = 1, cex=0.5)
+distancia_km(coordenadas)
+plot(coordenadas)
+
